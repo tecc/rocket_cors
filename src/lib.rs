@@ -1030,7 +1030,7 @@ impl CorsOptions {
     fn default_allowed_methods() -> HashSet<Method> {
         use rocket::http::Method;
 
-        vec![
+        AllowedMethods::from([
             Method::Get,
             Method::Head,
             Method::Post,
@@ -1038,10 +1038,7 @@ impl CorsOptions {
             Method::Put,
             Method::Patch,
             Method::Delete,
-        ]
-        .into_iter()
-        .map(From::from)
-        .collect()
+        ])
     }
 
     fn default_fairing_route_base() -> String {
@@ -1966,8 +1963,7 @@ mod tests {
 
         CorsOptions {
             allowed_origins,
-            allowed_methods: vec![Method::Get]
-                .into(),
+            allowed_methods: AllowedMethods::from([Method::Get]),
             allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
             allow_credentials: true,
             expose_headers: ["Content-Type", "X-Custom"]
@@ -2514,7 +2510,7 @@ mod tests {
         let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
         let method_header = Header::new(
             ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-            ::http::Method::GET.as_str(),
+            http::Method::GET.as_str(),
         );
         let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
