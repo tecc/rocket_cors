@@ -435,13 +435,13 @@ impl From<regex::Error> for Error {
 /// ["Externally tagged"](https://serde.rs/enum-representations.html)
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serialization", serde(untagged))]
 #[derive(Default)]
 pub enum AllOrSome<T> {
     /// Everything is allowed. Usually equivalent to the "*" value.
     #[default]
     All,
     /// Only some of `T` is allowed
+    #[cfg_attr(feature = "serialization", serde(untagged))]
     Some(T),
 }
 
@@ -878,22 +878,18 @@ impl AllowedHeaders {
 /// ```json
 /// {
 ///   "allowed_origins": {
-///     "Some": {
-///         "exact": ["https://www.acme.com"],
-///         "regex": ["^https://www.example-[A-z0-9]*.com$"]
-///     }
+///     "exact": ["https://www.acme.com"],
+///     "regex": ["^https://www.example-[A-z0-9]*.com$"]
 ///   },
 ///   "allowed_methods": [
 ///     "POST",
 ///     "DELETE",
 ///     "GET"
 ///   ],
-///   "allowed_headers": {
-///     "Some": [
-///       "Accept",
-///       "Authorization"
-///     ]
-///   },
+///   "allowed_headers": [
+///     "Accept",
+///     "Authorization"
+///   ],
 ///   "allow_credentials": true,
 ///   "expose_headers": [
 ///     "Content-Type",
@@ -2064,22 +2060,18 @@ mod tests {
     fn cors_options_example_can_be_deserialized() {
         let json = r#"{
   "allowed_origins": {
-    "Some": {
-        "exact": ["https://www.acme.com"],
-        "regex": ["^https://www.example-[A-z0-9]*.com$"]
-    }
+    "exact": ["https://www.acme.com"],
+    "regex": ["^https://www.example-[A-z0-9]*.com$"]
   },
   "allowed_methods": [
     "POST",
     "DELETE",
     "GET"
   ],
-  "allowed_headers": {
-    "Some": [
-      "Accept",
-      "Authorization"
-    ]
-  },
+  "allowed_headers": [
+    "Accept",
+    "Authorization"
+  ],
   "allow_credentials": true,
   "expose_headers": [
     "Content-Type",
