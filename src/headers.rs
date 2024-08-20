@@ -175,7 +175,7 @@ impl FromStr for AccessControlRequestMethod {
     type Err = ();
 
     fn from_str(method: &str) -> Result<Self, Self::Err> {
-        Ok(AccessControlRequestMethod(crate::Method::from_str(method)?))
+        Ok(AccessControlRequestMethod(crate::Method::from_str(method).map_err(|_| ())?))
     }
 }
 
@@ -252,15 +252,14 @@ impl<'r> FromRequest<'r> for AccessControlRequestHeaders {
 mod tests {
     use std::str::FromStr;
 
-    use rocket::http::hyper;
     use rocket::http::Header;
     use rocket::local::blocking::Client;
 
-    static ORIGIN: http::header::HeaderName = hyper::header::ORIGIN;
+    static ORIGIN: http::header::HeaderName = http::header::ORIGIN;
     static ACCESS_CONTROL_REQUEST_METHOD: http::header::HeaderName =
-        hyper::header::ACCESS_CONTROL_REQUEST_METHOD;
+        http::header::ACCESS_CONTROL_REQUEST_METHOD;
     static ACCESS_CONTROL_REQUEST_HEADERS: http::header::HeaderName =
-        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS;
+        http::header::ACCESS_CONTROL_REQUEST_HEADERS;
 
     use super::*;
 
@@ -347,14 +346,14 @@ mod tests {
         let parsed_method = not_err!(AccessControlRequestMethod::from_str(method));
         assert_matches!(
             parsed_method,
-            AccessControlRequestMethod(crate::Method(rocket::http::Method::Post))
+            AccessControlRequestMethod(rocket::http::Method::Post)
         );
 
         let method = "options";
         let parsed_method = not_err!(AccessControlRequestMethod::from_str(method));
         assert_matches!(
             parsed_method,
-            AccessControlRequestMethod(crate::Method(rocket::http::Method::Options))
+            AccessControlRequestMethod(rocket::http::Method::Options)
         );
 
         let method = "INVALID";
@@ -367,7 +366,7 @@ mod tests {
         let mut request = client.get("/");
         let method = Header::new(
             ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-            hyper::Method::GET.as_str(),
+            http::Method::GET.as_str(),
         );
         request.add_header(method);
         let outcome = AccessControlRequestMethod::from_request_sync(request.inner());

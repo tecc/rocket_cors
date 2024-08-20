@@ -1,17 +1,16 @@
 //! This crate tests that all the request headers are parsed correctly in the round trip
 use std::ops::Deref;
 
-use rocket::http::hyper;
 use rocket::http::Header;
 use rocket::local::blocking::Client;
 use rocket::{get, routes};
 use rocket_cors::headers::*;
 
-static ORIGIN: http::header::HeaderName = hyper::header::ORIGIN;
+static ORIGIN: http::header::HeaderName = http::header::ORIGIN;
 static ACCESS_CONTROL_REQUEST_METHOD: http::header::HeaderName =
-    hyper::header::ACCESS_CONTROL_REQUEST_METHOD;
+    http::header::ACCESS_CONTROL_REQUEST_METHOD;
 static ACCESS_CONTROL_REQUEST_HEADERS: http::header::HeaderName =
-    hyper::header::ACCESS_CONTROL_REQUEST_HEADERS;
+    http::header::ACCESS_CONTROL_REQUEST_HEADERS;
 
 #[get("/request_headers")]
 fn request_headers(
@@ -38,7 +37,7 @@ fn request_headers_round_trip_smoke_test() {
     let origin_header = Header::new(ORIGIN.as_str(), "https://foo.bar.xyz");
     let method_header = Header::new(
         ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-        hyper::Method::GET.as_str(),
+        http::Method::GET.as_str(),
     );
     let request_headers = Header::new(
         ACCESS_CONTROL_REQUEST_HEADERS.as_str(),

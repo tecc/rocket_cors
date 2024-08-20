@@ -266,17 +266,18 @@ use std::error;
 use std::fmt;
 use std::marker::PhantomData;
 use std::ops::Deref;
-use std::str::FromStr;
 
 #[allow(unused_imports)]
-use ::log::{debug, error, info};
 use regex::RegexSet;
-use rocket::http::{self, Status};
+use rocket::http::Status;
 use rocket::request::{FromRequest, Request};
 use rocket::response;
-use rocket::{debug_, error_, info_, outcome::Outcome, State};
+use rocket::{outcome::Outcome, State};
+#[cfg(feature = "trace")]
+use rocket::trace::{debug, error, info};
 #[cfg(feature = "serialization")]
 use serde_derive::{Deserialize, Serialize};
+pub use rocket::http::Method;
 
 use crate::headers::{
     AccessControlRequestHeaders, AccessControlRequestMethod, HeaderFieldName, HeaderFieldNamesSet,
@@ -408,7 +409,8 @@ impl error::Error for Error {
 
 impl<'r, 'o: 'r> response::Responder<'r, 'o> for Error {
     fn respond_to(self, _: &Request<'_>) -> Result<response::Response<'o>, Status> {
-        error_!("CORS Error: {}", self);
+        #[cfg(feature = "trace")]
+        error!("CORS Error: {}", self);
         Err(self.status())
     }
 }
@@ -464,88 +466,6 @@ impl<T> AllOrSome<T> {
         match self {
             AllOrSome::All => panic!("Attempting to unwrap an `All`"),
             AllOrSome::Some(inner) => inner,
-        }
-    }
-}
-
-/// A wrapper type around `rocket::http::Method` to support serialization and deserialization
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub struct Method(http::Method);
-
-impl FromStr for Method {
-    type Err = ();
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let method = http::Method::from_str(s)?;
-        Ok(Method(method))
-    }
-}
-
-impl Deref for Method {
-    type Target = http::Method;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl From<http::Method> for Method {
-    fn from(method: http::Method) -> Self {
-        Method(method)
-    }
-}
-
-impl fmt::Display for Method {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Display::fmt(&self.0, f)
-    }
-}
-
-#[cfg(feature = "serialization")]
-mod method_serde {
-    use std::fmt;
-    use std::str::FromStr;
-
-    use serde::{self, Deserialize, Serialize};
-
-    use crate::Method;
-
-    impl Serialize for Method {
-        fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where
-            S: serde::Serializer,
-        {
-            serializer.serialize_str(self.as_str())
-        }
-    }
-
-    impl<'de> Deserialize<'de> for Method {
-        fn deserialize<D>(deserializer: D) -> Result<Method, D::Error>
-        where
-            D: serde::Deserializer<'de>,
-        {
-            use serde::de::{self, Visitor};
-
-            struct MethodVisitor;
-            impl<'de> Visitor<'de> for MethodVisitor {
-                type Value = Method;
-
-                fn expecting(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-                    formatter.write_str("a string containing a HTTP Verb")
-                }
-
-                fn visit_str<E>(self, s: &str) -> Result<Self::Value, E>
-                where
-                    E: de::Error,
-                {
-                    match Self::Value::from_str(s) {
-                        Ok(value) => Ok(value),
-                        Err(e) => Err(de::Error::custom(format!("{:?}", e))),
-                    }
-                }
-            }
-
-            deserializer.deserialize_string(MethodVisitor)
         }
     }
 }
@@ -818,10 +738,12 @@ impl ParsedAllowedOrigins {
     }
 
     fn verify(&self, origin: &Origin) -> bool {
-        info_!("Verifying origin: {}", origin);
+        #[cfg(feature = "trace")]
+        info!("Verifying origin: {}", origin);
         match origin {
             Origin::Null => {
-                info_!("Origin is null. Allowing? {}", self.allow_null);
+                #[cfg(feature = "trace")]
+                info!("Origin is null. Allowing? {}", self.allow_null);
                 self.allow_null
             }
             Origin::Parsed(ref parsed) => {
@@ -831,27 +753,34 @@ impl ParsedAllowedOrigins {
                 );
                 // Verify by exact, then regex
                 if self.exact.get(parsed).is_some() {
-                    info_!("Origin has an exact match");
+                    #[cfg(feature = "trace")]
+                    info!("Origin has an exact match");
                     return true;
                 }
                 if let Some(regex_set) = &self.regex {
                     let regex_match = regex_set.is_match(&parsed.ascii_serialization());
-                    debug_!("Matching against regex set {:#?}", regex_set);
-                    info_!("Origin has a regex match? {}", regex_match);
+                    #[cfg(feature = "trace")]
+                    debug!("Matching against regex set {:#?}", regex_set);
+                    #[cfg(feature = "trace")]
+                    info!("Origin has a regex match? {}", regex_match);
                     return regex_match;
                 }
 
+                #[cfg(feature = "trace")]
                 info!("Origin does not match anything");
                 false
             }
             Origin::Opaque(ref opaque) => {
                 if let Some(regex_set) = &self.regex {
                     let regex_match = regex_set.is_match(opaque);
-                    debug_!("Matching against regex set {:#?}", regex_set);
-                    info_!("Origin has a regex match? {}", regex_match);
+                    #[cfg(feature = "trace")]
+                    debug!("Matching against regex set {:#?}", regex_set);
+                    #[cfg(feature = "trace")]
+                    info!("Origin has a regex match? {}", regex_match);
                     return regex_match;
                 }
 
+                #[cfg(feature = "trace")]
                 info!("Origin does not match anything");
                 false
             }
@@ -1613,7 +1542,8 @@ where
         let guard = match self.build_guard(request) {
             Ok(guard) => guard,
             Err(err) => {
-                error_!("CORS error: {}", err);
+                #[cfg(feature = "trace")]
+                error!("CORS error: {}", err);
                 return Err(err.status());
             }
         };
@@ -1684,7 +1614,7 @@ fn validate(options: &Cors, request: &Request<'_>) -> Result<ValidationResult, E
 
     // Check if the request verb is an OPTION or something else
     match request.method() {
-        http::Method::Options => {
+        Method::Options => {
             let method = request_method(request)?;
             let headers = request_headers(request)?;
             preflight_validate(options, &origin, &method, &headers)?;
@@ -1978,7 +1908,7 @@ fn actual_request_response(options: &Cors, origin: &str) -> Response {
 pub fn catch_all_options_routes() -> Vec<rocket::Route> {
     vec![rocket::Route::ranked(
         isize::MAX,
-        http::Method::Options,
+        Method::Options,
         "/<catch_all_options_route..>",
         CatchAllOptionsRouteHandler {},
     )]
@@ -1997,16 +1927,18 @@ impl rocket::route::Handler for CatchAllOptionsRouteHandler {
     ) -> rocket::route::Outcome<'r> {
         let guard: Guard<'_> = match request.guard().await {
             Outcome::Success(guard) => guard,
-            Outcome::Error((status, _)) => return rocket::route::Outcome::Error(status),
+            Outcome::Error((status, _)) => return Outcome::Error(status),
             Outcome::Forward(_) => unreachable!("Should not be reachable"),
         };
 
-        info_!(
-            "\"Catch all\" handling of CORS `OPTIONS` preflight for request {}",
-            request
+        #[cfg(feature = "trace")]
+        info!(
+            // NOTE(tecc): Removed the formatting of request
+            "\"Catch all\" handling of CORS `OPTIONS` preflight for request",
+            // request
         );
 
-        rocket::route::Outcome::from(request, guard.responder(()))
+        Outcome::from(request, guard.responder(()))
     }
 }
 
@@ -2014,18 +1946,16 @@ impl rocket::route::Handler for CatchAllOptionsRouteHandler {
 mod tests {
     use std::str::FromStr;
 
-    use rocket::http::hyper;
     use rocket::http::Header;
     use rocket::local::blocking::Client;
 
     use super::*;
-    use crate::http::Method;
 
-    static ORIGIN: ::http::header::HeaderName = hyper::header::ORIGIN;
+    static ORIGIN: ::http::header::HeaderName = http::header::ORIGIN;
     static ACCESS_CONTROL_REQUEST_METHOD: ::http::header::HeaderName =
-        hyper::header::ACCESS_CONTROL_REQUEST_METHOD;
+        ::http::header::ACCESS_CONTROL_REQUEST_METHOD;
     static ACCESS_CONTROL_REQUEST_HEADERS: ::http::header::HeaderName =
-        hyper::header::ACCESS_CONTROL_REQUEST_HEADERS;
+        ::http::header::ACCESS_CONTROL_REQUEST_HEADERS;
 
     fn to_parsed_origin<S: AsRef<str>>(origin: S) -> Result<Origin, Error> {
         Origin::from_str(origin.as_ref())
@@ -2036,10 +1966,8 @@ mod tests {
 
         CorsOptions {
             allowed_origins,
-            allowed_methods: vec![http::Method::Get]
-                .into_iter()
-                .map(From::from)
-                .collect(),
+            allowed_methods: vec![Method::Get]
+                .into(),
             allowed_headers: AllowedHeaders::some(&["Authorization", "Accept"]),
             allow_credentials: true,
             expose_headers: ["Content-Type", "X-Custom"]
@@ -2085,7 +2013,7 @@ mod tests {
         let cors_options_from_builder = CorsOptions::default()
             .allowed_origins(allowed_origins)
             .allowed_methods(
-                vec![http::Method::Get]
+                vec![Method::Get]
                     .into_iter()
                     .map(From::from)
                     .collect(),
@@ -2552,7 +2480,7 @@ mod tests {
     #[derive(Debug, Eq, PartialEq)]
     #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
     struct MethodTest {
-        method: crate::Method,
+        method: Method,
     }
 
     #[cfg(feature = "serialization")]
@@ -2561,7 +2489,7 @@ mod tests {
         use serde_test::{assert_tokens, Token};
 
         let test = MethodTest {
-            method: From::from(http::Method::Get),
+            method: Method::Get,
         };
 
         assert_tokens(
@@ -2586,7 +2514,7 @@ mod tests {
         let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
         let method_header = Header::new(
             ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-            hyper::Method::GET.as_str(),
+            ::http::Method::GET.as_str(),
         );
         let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
@@ -2617,7 +2545,7 @@ mod tests {
         let origin_header = Header::new(ORIGIN.as_str(), "https://www.example.com");
         let method_header = Header::new(
             ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-            hyper::Method::GET.as_str(),
+            ::http::Method::GET.as_str(),
         );
         let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
@@ -2645,7 +2573,7 @@ mod tests {
         let origin_header = Header::new(ORIGIN.as_str(), "https://www.example.com");
         let method_header = Header::new(
             ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-            hyper::Method::GET.as_str(),
+            ::http::Method::GET.as_str(),
         );
         let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
@@ -2684,7 +2612,7 @@ mod tests {
         let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
         let method_header = Header::new(
             ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-            hyper::Method::POST.as_str(),
+            ::http::Method::POST.as_str(),
         );
         let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
@@ -2706,7 +2634,7 @@ mod tests {
         let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
         let method_header = Header::new(
             ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-            hyper::Method::GET.as_str(),
+            ::http::Method::GET.as_str(),
         );
         let request_headers = Header::new(
             ACCESS_CONTROL_REQUEST_HEADERS.as_str(),
@@ -2788,7 +2716,7 @@ mod tests {
         let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
         let method_header = Header::new(
             ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-            hyper::Method::GET.as_str(),
+            ::http::Method::GET.as_str(),
         );
         let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
@@ -2824,7 +2752,7 @@ mod tests {
         let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
         let method_header = Header::new(
             ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-            hyper::Method::GET.as_str(),
+            ::http::Method::GET.as_str(),
         );
         let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 
@@ -2860,7 +2788,7 @@ mod tests {
         let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
         let method_header = Header::new(
             ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-            hyper::Method::GET.as_str(),
+            ::http::Method::GET.as_str(),
         );
         let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
 

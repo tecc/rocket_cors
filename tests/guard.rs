@@ -1,18 +1,17 @@
 //! This crate tests using `rocket_cors` using the per-route handling with request guard
 use rocket_cors as cors;
 
-use rocket::http::hyper;
 use rocket::http::Method;
 use rocket::http::{Header, Status};
 use rocket::local::blocking::Client;
 use rocket::State;
 use rocket::{get, options, routes};
 
-static ORIGIN: http::header::HeaderName = hyper::header::ORIGIN;
+static ORIGIN: http::header::HeaderName = http::header::ORIGIN;
 static ACCESS_CONTROL_REQUEST_METHOD: http::header::HeaderName =
-    hyper::header::ACCESS_CONTROL_REQUEST_METHOD;
+    http::header::ACCESS_CONTROL_REQUEST_METHOD;
 static ACCESS_CONTROL_REQUEST_HEADERS: http::header::HeaderName =
-    hyper::header::ACCESS_CONTROL_REQUEST_HEADERS;
+    http::header::ACCESS_CONTROL_REQUEST_HEADERS;
 
 #[get("/")]
 fn cors_responder(cors: cors::Guard<'_>) -> cors::Responder<&str> {
@@ -88,7 +87,7 @@ fn smoke_test() {
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
         ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-        hyper::Method::GET.as_str(),
+        http::Method::GET.as_str(),
     );
     let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
@@ -125,7 +124,7 @@ fn cors_options_catch_all_check() {
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
         ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-        hyper::Method::GET.as_str(),
+        http::Method::GET.as_str(),
     );
     let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
@@ -153,7 +152,7 @@ fn cors_options_catch_all_check_other_routes() {
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
         ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-        hyper::Method::GET.as_str(),
+        http::Method::GET.as_str(),
     );
     let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
@@ -219,7 +218,7 @@ fn cors_options_bad_origin() {
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.bad-origin.com");
     let method_header = Header::new(
         ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-        hyper::Method::GET.as_str(),
+        http::Method::GET.as_str(),
     );
     let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
@@ -243,7 +242,7 @@ fn cors_options_missing_origin() {
 
     let method_header = Header::new(
         ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-        hyper::Method::GET.as_str(),
+        http::Method::GET.as_str(),
     );
     let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
@@ -267,7 +266,7 @@ fn cors_options_bad_request_method() {
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
         ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-        hyper::Method::POST.as_str(),
+        http::Method::POST.as_str(),
     );
     let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
@@ -292,7 +291,7 @@ fn cors_options_bad_request_header() {
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
         ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-        hyper::Method::GET.as_str(),
+        http::Method::GET.as_str(),
     );
     let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Foobar");
     let req = client
@@ -356,7 +355,7 @@ fn overridden_options_routes_are_used() {
     let origin_header = Header::new(ORIGIN.as_str(), "https://www.acme.com");
     let method_header = Header::new(
         ACCESS_CONTROL_REQUEST_METHOD.as_str(),
-        hyper::Method::GET.as_str(),
+        http::Method::GET.as_str(),
     );
     let request_headers = Header::new(ACCESS_CONTROL_REQUEST_HEADERS.as_str(), "Authorization");
     let req = client
