@@ -435,6 +435,7 @@ impl From<regex::Error> for Error {
 /// ["Externally tagged"](https://serde.rs/enum-representations.html)
 #[derive(Clone, Debug, Eq, PartialEq)]
 #[cfg_attr(feature = "serialization", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serialization", serde(untagged))]
 #[derive(Default)]
 pub enum AllOrSome<T> {
     /// Everything is allowed. Usually equivalent to the "*" value.

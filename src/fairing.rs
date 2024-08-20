@@ -92,7 +92,7 @@ fn on_response_wrapper(
         #[cfg(feature = "trace")]
         info!(
             "CORS Fairing: Turned missing route {:?} into an OPTIONS pre-flight request",
-            request.route()
+            request.route() // I just realised what I've done here is pretty dumb.
         );
         response.set_status(Status::NoContent);
         let _ = response.body_mut().take();
